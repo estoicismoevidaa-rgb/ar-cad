@@ -1,6 +1,6 @@
 /* Service worker: deixa o app funcionando offline depois do primeiro acesso.
    Os projetos ficam no IndexedDB do aparelho (não passam pelo cache). */
-const VERSAO = 'arcad-v1.1.3';
+const VERSAO = 'arcad-v1.1.4';
 const ARQUIVOS = [
   './', './index.html', './css/app.css', './manifest.webmanifest',
   './js/main.js', './js/db.js', './js/importer.js', './js/importer-worker.js', './js/cad-core.js',
@@ -9,7 +9,7 @@ const ARQUIVOS = [
   './vendor/three/addons/controls/OrbitControls.js',
   './vendor/three/addons/loaders/GLTFLoader.js', './vendor/three/addons/loaders/STLLoader.js', './vendor/three/addons/loaders/OBJLoader.js',
   './vendor/three/addons/exporters/GLTFExporter.js', './vendor/three/addons/exporters/USDZExporter.js', './vendor/three/addons/libs/fflate.module.js',
-  './vendor/three/addons/utils/BufferGeometryUtils.js', './vendor/three/addons/utils/TextureUtils.js',
+  './vendor/three/addons/utils/BufferGeometryUtils.js', './vendor/three/addons/utils/TextureUtils.js', './vendor/three/addons/environments/RoomEnvironment.js',
   './vendor/occt/occt-import-js.js', './vendor/occt/occt-import-js.wasm',
   './icons/icone-192.png', './icons/icone-512.png'
 ];
