@@ -1,6 +1,6 @@
 /* Service worker: deixa o app funcionando offline depois do primeiro acesso.
    Os projetos ficam no IndexedDB do aparelho (não passam pelo cache). */
-const VERSAO = 'arcad-v1.1.1';
+const VERSAO = 'arcad-v1.1.2';
 const ARQUIVOS = [
   './', './index.html', './css/app.css', './manifest.webmanifest',
   './js/main.js', './js/db.js', './js/importer.js', './js/importer-worker.js', './js/cad-core.js',
