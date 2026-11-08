@@ -12,7 +12,7 @@
  * A escala só muda se o usuário AUTORIZAR explicitamente (e fica destacada em vermelho).
  */
 import * as THREE from 'three';
-import { luzes, fmtMm, tamanhoPecaMm } from './modelo.js';
+import { luzes, ambiente, fmtMm, tamanhoPecaMm } from './modelo.js';
 
 export const ESTADO = { POSICIONANDO: 'posicionando', FIXADO: 'fixado' };
 
@@ -81,7 +81,7 @@ export class SessaoAR {
     this.overlayAtivo = feats ? feats.includes('dom-overlay') : !!sessao.domOverlayState;
 
     // Cena
-    const cena = new THREE.Scene(); this.cena = cena; luzes(cena);
+    const cena = new THREE.Scene(); this.cena = cena; luzes(cena); if (this.renderer) ambiente(this.renderer, cena);
     this.camera = new THREE.PerspectiveCamera();
     this.reticulo = this._criarReticulo(); cena.add(this.reticulo);
     this.ancoraGrupo = new THREE.Group(); this.ancoraGrupo.matrixAutoUpdate = false; cena.add(this.ancoraGrupo);
