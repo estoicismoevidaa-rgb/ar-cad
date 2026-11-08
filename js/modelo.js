@@ -8,6 +8,7 @@
  *    que é rígida) e mantém uma tabela de faixas de triângulos → peça, para a seleção.
  */
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 export const LIMITE_MALHAS_SEM_FUSAO = 150;
@@ -70,6 +71,7 @@ export function prepararModelo(cena, opcoes) {
       let nV = 0, nI = 0;
       partes.forEach(pt => { nV += pt.geo.attributes.position.count; nI += pt.count; });
       const pos = new Float32Array(nV * 3), nor = new Float32Array(nV * 3);
+      const temUv = partes.some(pt => pt.geo.attributes.uv); const uvs = temUv ? new Float32Array(nV * 2) : null;
       const idx = nV > 65535 ? new Uint32Array(nI) : new Uint16Array(nI);
       const faixas = [];   // [triInicio, triFim, pecaId]
       let oV = 0, oI = 0; const v = new THREE.Vector3(); const nm = new THREE.Matrix3();
@@ -79,6 +81,8 @@ export function prepararModelo(cena, opcoes) {
           v.fromBufferAttribute(P, i).applyMatrix4(pt.matriz); pos.set([v.x, v.y, v.z], (oV + i) * 3);
           if (N) { v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); nor.set([v.x, v.y, v.z], (oV + i) * 3); }
         }
+        const U = pt.geo.attributes.uv;
+        if (uvs && U) for (let i = 0; i < U.count; i++) { uvs[(oV + i) * 2] = U.getX(i); uvs[(oV + i) * 2 + 1] = U.getY(i); }
         const I = pt.geo.index;
         for (let k = 0; k < pt.count; k++) idx[oI + k] = (I ? I.getX(pt.start + k) : pt.start + k) + oV;
         faixas.push([oI / 3, (oI + pt.count) / 3 - 1, pt.peca.id]);
@@ -87,6 +91,7 @@ export function prepararModelo(cena, opcoes) {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
       g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      if (uvs) g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
       g.setIndex(new THREE.BufferAttribute(idx, 1));
       g.computeBoundingBox(); g.computeBoundingSphere();
       const mesh = new THREE.Mesh(g, mat); mesh.userData.faixas = faixas; mesh.name = 'fundida:' + mat.name;
@@ -180,8 +185,18 @@ export function fmtMm(v) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' mm';
 }
 
+const _envs = new WeakMap();
+/** Reflexos de estúdio (RoomEnvironment): faz cromo, zinco e pintura brilhante parecerem reais. */
+export function ambiente(renderer, cena) {
+  try {
+    let t = _envs.get(renderer);
+    if (!t) { const pm = new THREE.PMREMGenerator(renderer); t = pm.fromScene(new RoomEnvironment(), 0.04).texture; pm.dispose(); _envs.set(renderer, t); }
+    cena.environment = t;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+  } catch (e) { console.warn('ambiente', e); }
+}
 export function luzes(cena) {
-  const h = new THREE.HemisphereLight(0xffffff, 0x666655, 1.6); cena.add(h);
-  const d = new THREE.DirectionalLight(0xffffff, 1.8); d.position.set(3, 8, 4); cena.add(d);
+  const h = new THREE.HemisphereLight(0xffffff, 0x666655, 0.9); cena.add(h);
+  const d = new THREE.DirectionalLight(0xffffff, 1.6); d.position.set(3, 8, 4); cena.add(d);
   return { h, d };
 }
