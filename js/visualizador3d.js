@@ -3,7 +3,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { luzes } from './modelo.js';
+import { luzes, ambiente } from './modelo.js';
 
 export class Visualizador3D {
   constructor(canvas) {
@@ -14,7 +14,7 @@ export class Visualizador3D {
     this.cena = new THREE.Scene(); this.cena.background = new THREE.Color(0x14181f);
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.005, 2000);
     this.controles = new OrbitControls(this.camera, canvas); this.controles.enableDamping = true;
-    luzes(this.cena);
+    luzes(this.cena); ambiente(this.renderer, this.cena);
     this.grade = null; this.modelo = null; this.rodando = false;
     this.raycaster = new THREE.Raycaster();
     this._loop = this._loop.bind(this);
@@ -59,7 +59,7 @@ export function gerarMiniatura(modelo, largura = 360, altura = 240) {
   const canvas = document.createElement('canvas'); canvas.width = largura; canvas.height = altura;
   const r = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
   r.outputColorSpace = THREE.SRGBColorSpace;
-  const cena = new THREE.Scene(); cena.background = new THREE.Color(0x1c222b); luzes(cena);
+  const cena = new THREE.Scene(); cena.background = new THREE.Color(0x1c222b); luzes(cena); ambiente(r, cena);
   const pai = modelo.raiz.parent; cena.add(modelo.raiz);
   const t = modelo.tamanhoM; const maior = Math.max(t.x, t.y, t.z);
   const cam = new THREE.PerspectiveCamera(40, largura / altura, maior / 1000, maior * 20);
