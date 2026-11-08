@@ -1,6 +1,7 @@
 /*
  * AR-CAD Inspetor — interface principal (biblioteca, projeto, importação e AR).
  */
+import { suportaQuickLook, gerarUsdz, abrirQuickLook } from './quicklook.js';
 import { db, novoId } from './db.js';
 import { importarArquivo } from './importer.js';
 import { carregarGlb, prepararModelo, fmtMm, tamanhoPecaMm } from './modelo.js';
@@ -153,6 +154,7 @@ async function usarGlb(bytes, p) {
   estado.cad = cad;
   estado.vis.mostrar(estado.modelo);
   renderDimensoes(p);
+  if (suportaQuickLook()) setTimeout(() => { const c = prepararUsdz(); if (c) c.promessa.catch(() => {}); }, 300);
 }
 function liberarModelo() { if (estado.modelo) { if (estado.vis) estado.vis.liberar(); estado.modelo.descartar(); estado.modelo = null; } }
 
@@ -206,8 +208,31 @@ $('#btn-pecas').onclick = () => {
 };
 
 // ================= REALIDADE AUMENTADA =================
+// ---- iPhone/iPad: AR Quick Look (USDZ em metros, escala travada em 1:1) ----
+let usdzCache = null;   // { modelo, blob } ou { modelo, promessa }
+function prepararUsdz() {
+  if (!estado.modelo || !suportaQuickLook()) return null;
+  if (usdzCache && usdzCache.modelo === estado.modelo) return usdzCache;
+  const c = { modelo: estado.modelo, blob: null, erro: null };
+  c.promessa = gerarUsdz(estado.modelo).then(b => { c.blob = b; return b; }).catch(e => { c.erro = e; throw e; });
+  usdzCache = c; return c;
+}
+async function entrarQuickLook() {
+  const c = prepararUsdz();
+  if (!c) { toast('Aguarde o modelo carregar.'); return; }
+  const nome = (estado.atual && estado.atual.nome) || 'modelo';
+  if (c.blob) { abrirQuickLook(c.blob, nome); return; }
+  toast('Preparando o modelo para o AR do iPhone…', 60000);
+  try { const b = await c.promessa; $('#toast').classList.add('oculto'); abrirQuickLook(b, nome); }
+  catch (e) { usdzCache = null; alert('Não foi possível gerar o arquivo USDZ: ' + e.message); }
+}
+
 async function entrarAR() {
   if (!estado.modelo) { toast('Aguarde o modelo carregar.'); return; }
+  if (suportaQuickLook()) {
+    const sup0 = estado.suporteAR || await verificarSuporteAR(); estado.suporteAR = sup0;
+    if (!sup0.ok) return entrarQuickLook();
+  }
   const sup = estado.suporteAR || await verificarSuporteAR(); estado.suporteAR = sup;
   if (!sup.ok) { alert(sup.motivo); return; }
   const p = estado.atual; p.vistoEm = Date.now(); db.salvarProjeto(p);
@@ -334,6 +359,7 @@ $('#busca').oninput = (e) => { estado.busca = e.target.value; atualizarBibliotec
 (async function iniciar() {
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
   const sup = await verificarSuporteAR(); estado.suporteAR = sup;
-  if (!sup.ok) { const a = $('#aviso-ar'); a.textContent = sup.motivo + ' Você ainda pode importar e inspecionar os projetos em 3D.'; a.classList.remove('oculto'); }
+  if (!sup.ok && suportaQuickLook()) { const a = $('#aviso-ar'); a.textContent = 'iPhone/iPad: a AR abre pelo AR Quick Look da Apple, em tamanho real (escala travada em 1:1). As medidas e a seleção de peças ficam na tela 3D do app.'; a.classList.remove('oculto'); }
+  else if (!sup.ok) { const a = $('#aviso-ar'); a.textContent = sup.motivo + ' Você ainda pode importar e inspecionar os projetos em 3D.'; a.classList.remove('oculto'); }
   await atualizarBiblioteca();
 })();
