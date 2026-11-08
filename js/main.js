@@ -2,7 +2,7 @@
  * AR-CAD Inspetor — interface principal (biblioteca, projeto, importação e AR).
  */
 import { suportaQuickLook, gerarUsdz, abrirQuickLook } from './quicklook.js';
-import { db, novoId } from './db.js';
+import { db, novoId, bytesDe } from './db.js';
 import { importarArquivo } from './importer.js';
 import { carregarGlb, prepararModelo, fmtMm, tamanhoPecaMm } from './modelo.js';
 import { Visualizador3D, gerarMiniatura } from './visualizador3d.js';
@@ -136,14 +136,14 @@ async function carregarModeloAtual() {
     // Carregamento progressivo: nível leve primeiro (se houver), detalhe em seguida
     if (arq.glbLeve) {
       $('#carregando-3d').textContent = 'Carregando nível leve…';
-      await usarGlb(new Uint8Array(await arq.glbLeve.arrayBuffer()), p);
+      await usarGlb(await bytesDe(arq.glbLeve), p);
       $('#carregando-3d').classList.add('oculto');
       toast('Visualização leve. Carregando detalhe completo…', 2000);
-      const bytes = new Uint8Array(await arq.glb.arrayBuffer());
+      const bytes = await bytesDe(arq.glb);
       if (estado.atual && estado.atual.id === p.id) { liberarModelo(); await usarGlb(bytes, p); toast('Detalhe completo carregado.', 1600); }
     } else {
       $('#carregando-3d').textContent = 'Carregando modelo…';
-      await usarGlb(new Uint8Array(await arq.glb.arrayBuffer()), p);
+      await usarGlb(await bytesDe(arq.glb), p);
     }
   } catch (e) { toast('Falha ao carregar o modelo: ' + e.message, 6000); }
   $('#carregando-3d').classList.add('oculto');
@@ -198,7 +198,7 @@ $('#btn-excluir').onclick = async () => {
 $('#btn-substituir').onclick = () => abrirImportacao(true);
 $('#btn-exportar').onclick = async () => {
   const arq = await db.obterArquivos(estado.atual.id); const a = document.createElement('a');
-  a.href = URL.createObjectURL(arq.glb); a.download = (estado.atual.nome || 'modelo') + '.glb'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  a.href = URL.createObjectURL(arq.glb instanceof Blob ? arq.glb : new Blob([arq.glb], { type: 'model/gltf-binary' })); a.download = (estado.atual.nome || 'modelo') + '.glb'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 };
 $('#btn-pecas').onclick = () => {
   const box = $('#lista-pecas'); if (!box.classList.contains('oculto')) { box.classList.add('oculto'); return; }
