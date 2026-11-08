@@ -1,6 +1,6 @@
 /* Service worker: deixa o app funcionando offline depois do primeiro acesso.
    Os projetos ficam no IndexedDB do aparelho (não passam pelo cache). */
-const VERSAO = 'arcad-v1.1.2';
+const VERSAO = 'arcad-v1.1.3';
 const ARQUIVOS = [
   './', './index.html', './css/app.css', './manifest.webmanifest',
   './js/main.js', './js/db.js', './js/importer.js', './js/importer-worker.js', './js/cad-core.js',
@@ -17,5 +17,11 @@ self.addEventListener('install', e => e.waitUntil(caches.open(VERSAO).then(c => 
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSAO).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+  // Rede primeiro (pega a versão nova na hora); sem internet, usa o cache.
+  const url = new URL(e.request.url);
+  if (url.origin !== self.location.origin) { e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))); return; }
+  e.respondWith(fetch(e.request, { cache: 'no-cache' }).then(resp => {
+    if (resp && resp.ok) { const copia = resp.clone(); caches.open(VERSAO).then(c => c.put(e.request, copia)); }
+    return resp;
+  }).catch(() => caches.match(e.request, { ignoreSearch: true })));
 });
