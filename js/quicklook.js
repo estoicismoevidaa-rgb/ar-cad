@@ -35,6 +35,11 @@ export function cenaParaUsdz(modelo) {
       roughness: m.roughness != null ? m.roughness : 0.6,
       side: THREE.FrontSide
     });
+    // Texturas (cor, normal, rugosidade/metálico, oclusão, emissão): sem elas o Quick Look mostra a peça branca,
+    // porque em material texturizado a cor base costuma ser 1,1,1 e quem dá a cor é a textura.
+    ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap'].forEach(k => { if (m[k]) s[k] = m[k]; });
+    if (m.normalScale) s.normalScale.copy(m.normalScale);
+    if (m.emissive) s.emissive.copy(m.emissive);
     if (m.transparent && m.opacity < 1) { s.transparent = true; s.opacity = m.opacity; }
     cacheMat.set(m.uuid, s); return s;
   };
