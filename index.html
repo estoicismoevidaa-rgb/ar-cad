@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1318">
+  <title>AR-CAD Inspetor</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icone-192.png">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="importmap">
+  { "imports": {
+      "three": "./vendor/three/three.module.min.js",
+      "three/addons/": "./vendor/three/addons/"
+  } }
+  </script>
+  <script src="js/cad-core.js"></script>
+</head>
+<body>
+  <!-- ============ TELA INICIAL / BIBLIOTECA ============ -->
+  <main id="tela-inicio" class="tela">
+    <header class="topo">
+      <div class="marca">
+        <div class="logo">AR</div>
+        <div><h1>AR-CAD Inspetor</h1><p>Projetos SolidWorks em tamanho real</p></div>
+      </div>
+    </header>
+
+    <section class="acoes">
+      <button id="btn-importar" class="btn primario grande">＋ Importar projeto</button>
+      <button id="btn-camera" class="btn grande">◉ Abrir câmera</button>
+    </section>
+
+    <div id="aviso-ar" class="aviso oculto"></div>
+
+    <section id="secao-historico" class="oculto">
+      <h2>Vistos recentemente</h2>
+      <div id="historico" class="historico"></div>
+    </section>
+
+    <section>
+      <div class="titulo-linha">
+        <h2>Biblioteca</h2>
+        <button id="btn-nova-pasta" class="btn pequeno">Nova pasta</button>
+      </div>
+      <div class="filtros">
+        <input id="busca" type="search" placeholder="Buscar equipamento…">
+        <div id="pastas" class="chips"></div>
+      </div>
+      <div id="grade-projetos" class="grade"></div>
+      <p id="vazio" class="vazio oculto">Nenhum projeto ainda. Toque em <b>Importar projeto</b> e escolha um STEP exportado do SolidWorks.</p>
+    </section>
+    <footer class="rodape" id="rodape-armazenamento"></footer>
+  </main>
+
+  <!-- ============ PROJETO ============ -->
+  <section id="tela-projeto" class="tela oculto">
+    <header class="topo compacto">
+      <button id="btn-voltar" class="btn icone" aria-label="Voltar">‹</button>
+      <h1 id="proj-titulo">Projeto</h1>
+    </header>
+    <div class="visor"><canvas id="canvas-3d"></canvas><div id="carregando-3d" class="carregando oculto">Carregando…</div></div>
+    <button id="btn-ar" class="btn primario gigante">VISUALIZAR EM REALIDADE AUMENTADA</button>
+    <div id="proj-dim" class="cartao dimensoes"></div>
+    <div id="proj-peca" class="cartao oculto"></div>
+    <div class="cartao">
+      <label>Nome do equipamento<input id="proj-nome"></label>
+      <div class="duas">
+        <label>Pasta<input id="proj-pasta" list="lista-pastas"></label>
+        <label>Categoria<input id="proj-categoria" list="lista-categorias"></label>
+      </div>
+      <label>Eixo vertical do modelo
+        <select id="proj-eixo"><option value="Y">Y para cima (padrão SolidWorks)</option><option value="Z">Z para cima</option></select>
+      </label>
+      <button id="btn-salvar" class="btn">Salvar alterações</button>
+    </div>
+    <div class="cartao linha-botoes">
+      <button id="btn-substituir" class="btn">Substituir arquivo</button>
+      <button id="btn-exportar" class="btn">Exportar GLB</button>
+      <button id="btn-pecas" class="btn">Lista de peças</button>
+      <button id="btn-excluir" class="btn perigo">Excluir</button>
+    </div>
+    <div id="lista-pecas" class="cartao oculto"></div>
+  </section>
+
+  <datalist id="lista-pastas"></datalist>
+  <datalist id="lista-categorias"></datalist>
+
+  <!-- ============ DIÁLOGO DE IMPORTAÇÃO ============ -->
+  <dialog id="dlg-importar">
+    <form method="dialog" id="form-importar">
+      <h2 id="dlg-titulo">Importar projeto</h2>
+      <label>Arquivo
+        <input id="imp-arquivo" type="file" accept=".step,.stp,.iges,.igs,.brep,.stl,.obj,.glb,.gltf,.sldprt,.sldasm" multiple required>
+      </label>
+      <p class="dica">Do conversor de PC: selecione juntos o <b>.glb</b> e o <b>.leve.glb</b> para carregamento progressivo. Recomendado: STEP AP214 (preserva medidas, cores, nomes e montagem). SLDPRT/SLDASM: exporte como STEP no SolidWorks.</p>
+      <label>Nome do equipamento<input id="imp-nome" placeholder="Ex.: Carroceria 6 t"></label>
+      <div class="duas">
+        <label>Pasta<input id="imp-pasta" list="lista-pastas" placeholder="Ex.: Carretas"></label>
+        <label>Categoria<input id="imp-categoria" list="lista-categorias" placeholder="Ex.: Implementos"></label>
+      </div>
+      <div id="imp-opcoes-malha" class="oculto">
+        <label>Unidade do arquivo (STL/OBJ não guardam unidade)
+          <select id="imp-unidade"><option value="mm">milímetros</option><option value="cm">centímetros</option><option value="m">metros</option><option value="pol">polegadas</option></select>
+        </label>
+      </div>
+      <div id="imp-opcoes-cad" class="oculto">
+        <label>Qualidade da triangulação
+          <select id="imp-perfil"><option value="padrao">Padrão (desvio de corda ≤ 1 mm)</option><option value="detalhe">Detalhe (desvio de corda ≤ 0,3 mm, mais pesado)</option></select>
+        </label>
+        <label class="check"><input id="imp-lod" type="checkbox" checked> Gerar nível leve (carregamento progressivo)</label>
+      </div>
+      <label>Eixo vertical
+        <select id="imp-eixo"><option value="Y">Y para cima (padrão SolidWorks)</option><option value="Z">Z para cima</option></select>
+      </label>
+      <div id="imp-progresso" class="progresso oculto"></div>
+      <div id="imp-avisos" class="avisos"></div>
+      <menu>
+        <button value="cancel" class="btn" id="imp-cancelar">Cancelar</button>
+        <button id="imp-ok" class="btn primario" value="default">Importar</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <!-- ============ OVERLAY DA REALIDADE AUMENTADA ============ -->
+  <div id="ar-overlay" class="oculto" data-zona-gesto>
+    <div class="ar-topo" data-ui>
+      <span id="ar-rastreamento" class="selo">Iniciando…</span>
+      <span id="ar-fixacao" class="selo">Posicionando</span>
+      <span id="ar-escala" class="selo ok">ESCALA 1:1</span>
+    </div>
+    <div id="ar-instrucao" class="ar-instrucao">Aponte a câmera para o chão e mova o celular devagar até aparecer o círculo.</div>
+    <div id="ar-alerta" class="ar-alerta oculto"></div>
+    <div id="ar-info" class="ar-painel" data-ui></div>
+    <div id="ar-peca" class="ar-painel peca oculto" data-ui></div>
+    <div id="ar-medida" class="ar-painel medida oculto" data-ui></div>
+
+    <div id="ar-escala-painel" class="ar-painel oculto" data-ui>
+      <b>Escala de exibição (autorizada)</b>
+      <input id="ar-escala-faixa" type="range" min="0.01" max="1" step="0.01" value="1">
+      <div class="linha-botoes"><button class="btn pequeno" id="ar-escala-1">Voltar a 1:1</button><button class="btn pequeno" id="ar-escala-fechar">Fechar</button></div>
+    </div>
+
+    <div class="ar-controles" data-ui>
+      <div class="linha">
+        <button id="ar-girar-esq" class="btn redondo" title="Girar 15° à esquerda">⟲</button>
+        <button id="ar-fixar" class="btn primario fixar">FIXAR POSIÇÃO</button>
+        <button id="ar-girar-dir" class="btn redondo" title="Girar 15° à direita">⟳</button>
+      </div>
+      <div class="linha menor">
+        <button id="ar-inspecionar" class="btn pequeno ativo">Inspecionar</button>
+        <button id="ar-medir" class="btn pequeno">Medir peça</button>
+        <button id="ar-trena" class="btn pequeno">Trena real</button>
+        <button id="ar-ocultar" class="btn pequeno">Ocultar</button>
+        <button id="ar-reiniciar" class="btn pequeno">Reiniciar</button>
+        <button id="ar-escala-btn" class="btn pequeno">Escala</button>
+        <button id="ar-sair" class="btn pequeno perigo">Sair</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast oculto"></div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
