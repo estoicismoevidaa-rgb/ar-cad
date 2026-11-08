@@ -260,7 +260,8 @@ function atualizarInfoAR(i) {
     `Projeto: ${dimTxt(proj)}<br>` +
     `Exibido: ${dimTxt(d)} ${i.escala === 1 ? '✔ 1:1' : '<b style="color:#ff8a8d">≠ projeto</b>'}<br>` +
     `Fixação: ${i.fixacao}${i.distanciaM != null ? `<br>Distância até o modelo: ${i.distanciaM.toFixed(2).replace('.', ',')} m` : ''}`;
-  if (!i.superficie && i.fixacao === 'posicionando') $('#ar-instrucao').textContent = 'Procurando o chão… mova o celular devagar, mostrando o piso.';
+  if (estado.ar && estado.ar.semHitTest && i.fixacao === 'posicionando') $('#ar-instrucao').textContent = 'Este aparelho não detecta o chão: modelo colocado 2 m à frente, chão estimado 1,4 m abaixo do celular (altura aproximada). Toque em FIXAR POSIÇÃO.';
+  else if (!i.superficie && i.fixacao === 'posicionando') $('#ar-instrucao').textContent = 'Procurando o chão… mova o celular devagar, mostrando o piso.';
   else if (i.fixacao === 'posicionando') $('#ar-instrucao').textContent = 'Arraste para os lados para girar. Ande até o lugar desejado e toque em FIXAR POSIÇÃO.';
 }
 function mostrarPecaAR(pc) {
