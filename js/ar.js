@@ -52,17 +52,30 @@ export class SessaoAR {
     r.xr.enabled = true; r.xr.setReferenceSpaceType('local');
     this.renderer = r;
 
-    const sessao = await navigator.xr.requestSession('immersive-ar', {
-      requiredFeatures: ['hit-test'],
-      optionalFeatures: ['anchors', 'dom-overlay', 'local-floor'],
-      domOverlay: { root: this.overlay }
-    });
+    // Tenta da configuração mais completa para a mais simples (alguns aparelhos recusam uma feature)
+    const configs = [
+      { requiredFeatures: ['hit-test'], optionalFeatures: ['anchors', 'dom-overlay', 'local-floor'], domOverlay: { root: this.overlay } },
+      { optionalFeatures: ['hit-test', 'anchors', 'dom-overlay'], domOverlay: { root: this.overlay } },
+      { optionalFeatures: ['hit-test'] },
+      {}
+    ];
+    let sessao = null, ultimoErro = null;
+    for (const c of configs) {
+      try { sessao = await navigator.xr.requestSession('immersive-ar', c); break; }
+      catch (e) { ultimoErro = e; console.warn('AR config recusada', c, e); }
+    }
+    if (!sessao) {
+      const err = new Error((ultimoErro && ultimoErro.message ? ultimoErro.message + ' ' : '') +
+        '— O Chrome não conseguiu abrir o ARCore. Instale/atualize "Serviços do Google Play para RA" na Play Store e confirme se o modelo do celular está na lista de aparelhos compatíveis com ARCore.');
+      throw err;
+    }
     this.sessao = sessao;
     if (this.modoEconomia) r.xr.setFramebufferScaleFactor(0.75);
     await r.xr.setSession(sessao);
     this.ref = r.xr.getReferenceSpace();
     this.viewerSpace = await sessao.requestReferenceSpace('viewer');
-    this.hitSource = await sessao.requestHitTestSource({ space: this.viewerSpace });
+    try { this.hitSource = await sessao.requestHitTestSource({ space: this.viewerSpace }); }
+    catch (e) { this.hitSource = null; console.warn('hit-test indisponível', e); }
     const feats = sessao.enabledFeatures;  // Chrome informa as features realmente ativas
     this.ancorasSuportadas = feats ? feats.includes('anchors') : (typeof XRFrame !== 'undefined' && 'createAnchor' in XRFrame.prototype);
     this.overlayAtivo = feats ? feats.includes('dom-overlay') : !!sessao.domOverlayState;
@@ -109,6 +122,17 @@ export class SessaoAR {
       this.reticulo.matrix.fromArray(hp.transform.matrix);
     } else {
       this.reticulo.visible = false;
+    }
+
+    // Aparelho sem hit-test: coloca o modelo 2 m à frente, com o chão estimado 1,4 m abaixo do celular
+    if (!this.hitSource && pose && !this._jaPosicionou && this.estado === ESTADO.POSICIONANDO) {
+      const m = new THREE.Matrix4().fromArray(pose.transform.matrix);
+      const pos = new THREE.Vector3().setFromMatrixPosition(m);
+      const frente = new THREE.Vector3(0, 0, -1).transformDirection(m); frente.y = 0;
+      if (frente.lengthSq() < 1e-6) frente.set(0, 0, -1); frente.normalize();
+      const alvo = pos.clone().addScaledVector(frente, 2.0); alvo.y = pos.y - 1.4;
+      this.ancoraGrupo.matrix.makeTranslation(alvo.x, alvo.y, alvo.z);
+      this._jaPosicionou = true; this.semHitTest = true;
     }
 
     if (this.estado === ESTADO.POSICIONANDO) {
